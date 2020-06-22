@@ -1,0 +1,406 @@
+import org.hyperskill.hstest.stage.StageTest;
+import org.hyperskill.hstest.testcase.CheckResult;
+import org.hyperskill.hstest.testcase.TestCase;
+import tictactoe.Main;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+enum FieldState {
+    X, O, FREE;
+
+    static FieldState get(char symbol) {
+        switch (symbol) {
+            case 'X': return X;
+            case 'O': return O;
+            case ' ':
+            case '_':
+                return FREE;
+            default: return null;
+        }
+    }
+}
+
+class TicTacToeField {
+
+    final FieldState[][] field;
+
+    TicTacToeField(FieldState[][] field) {
+        this.field = new FieldState[3][3];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                this.field[row][col] = field[row][col];
+            }
+        }
+    }
+
+    TicTacToeField(String str) {
+        field = new FieldState[3][3];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                field[row][col] =
+                    FieldState.get(str.charAt(((2 - row) * 3 + col)));
+            }
+        }
+    }
+
+    boolean equalTo(TicTacToeField other) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (field[i][j] != other.field[i][j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    boolean hasNextAs(TicTacToeField other) {
+        boolean improved = false;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (field[i][j] != other.field[i][j]) {
+                    if (field[i][j] == FieldState.FREE && !improved) {
+                        improved = true;
+                    }
+                    else {
+                        return false;
+                    }
+                }
+            }
+        }
+        return improved;
+    }
+
+    boolean isCloseTo(TicTacToeField other) {
+        return equalTo(other)
+            || hasNextAs(other)
+            || other.hasNextAs(this);
+    }
+
+    static TicTacToeField parse(String fieldStr) {
+
+        try {
+            List<String> lines = fieldStr
+                .lines()
+                .map(String::strip)
+                .filter(e ->
+                    e.startsWith("|")
+                        && e.endsWith("|"))
+                .collect(Collectors.toList());
+
+            for (String line : lines) {
+                for (char c : line.toCharArray()) {
+                    if (c != 'X'
+                        && c != 'O'
+                        && c != '|'
+                        && c != ' '
+                        && c != '_') {
+                        return null;
+                    }
+                }
+            }
+
+            FieldState[][] field = new FieldState[3][3];
+
+            int y = 2;
+            for (String line : lines) {
+                char[] cols = new char[] {
+                    line.charAt(2),
+                    line.charAt(4),
+                    line.charAt(6)
+                };
+
+                int x = 0;
+                for (char c : cols) {
+                    FieldState state = FieldState.get(c);
+                    if (state == null) {
+                        return null;
+                    }
+                    field[y][x] = state;
+                    x++;
+                }
+                y--;
+            }
+
+            return new TicTacToeField(field);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+
+    static List<TicTacToeField> parseAll(String output) {
+        List<TicTacToeField> fields = new ArrayList<>();
+
+        List<String> lines = output
+            .lines()
+            .map(String::strip)
+            .filter(e -> e.length() > 0)
+            .collect(Collectors.toList());
+
+        String candidateField = "";
+        boolean insideField = false;
+        for (String line : lines) {
+            if (line.contains("----") && !insideField) {
+                insideField = true;
+                candidateField = "";
+            } else if (line.contains("----") && insideField) {
+                TicTacToeField field = TicTacToeField.parse(candidateField);
+                if (field != null) {
+                    fields.add(field);
+                }
+                insideField = false;
+            }
+
+            if (insideField && line.startsWith("|")) {
+                candidateField += line + "\n";
+            }
+        }
+
+        return fields;
+    }
+
+}
+
+
+class Clue {
+    String input;
+    String result;
+    String state;
+    String additionalContains;
+
+    Clue(String input, String result, String state) {
+        this(input, result, state, null);
+    }
+
+    Clue(String input, String result, String state, String additionalContains) {
+        this.input = input;
+        this.result = result;
+        this.state = state;
+        this.additionalContains = additionalContains;
+    }
+}
+
+public class TicTacToeTest extends StageTest<Clue> {
+    public TicTacToeTest() {
+        super(Main.class);
+    }
+
+    static String[] inputs = new String[] {
+        "1 1", "1 2", "1 3",
+        "2 1", "2 2", "2 3",
+        "3 1", "3 2", "3 3"
+    };
+
+    String iterateCells(String initial) {
+        int index = -1;
+        for (int i = 0; i < inputs.length; i++) {
+            if (initial.equals(inputs[i])) {
+                index = i;
+                break;
+            }
+        }
+        if (index == -1) {
+            return "";
+        }
+        String fullInput = "";
+        for (int i = index; i < index + 9; i++) {
+            fullInput += inputs[i % inputs.length] + "\n";
+        }
+        return fullInput;
+    }
+
+    @Override
+    public List<TestCase<Clue>> generate() {
+        return List.of(
+            new TestCase<Clue>()
+                .setInput("_XXOO_OX_\n1 3")
+                .setAttach(new Clue(
+                    "_XXOO_OX_", "XXXOO_OX_", "X wins")),
+
+            new TestCase<Clue>()
+                .setInput("_XXOO_OX_\n1 1\n1 3")
+                .setAttach(new Clue(
+                    "_XXOO_OX_", "XXXOO_OX_", "X wins",
+                    "This cell is occupied! Choose another one!")),
+
+            new TestCase<Clue>()
+                .setInput("_XXOO_OX_\n1 4\n1 3")
+                .setAttach(new Clue(
+                    "_XXOO_OX_", "XXXOO_OX_", "X wins",
+                    "Coordinates should be from 1 to 3!")),
+
+            new TestCase<Clue>()
+                .setInput("_XXOO_OX_\none\n1 3")
+                .setAttach(new Clue(
+                    "_XXOO_OX_", "XXXOO_OX_", "X wins",
+                    "You should enter numbers!")),
+
+            new TestCase<Clue>()
+                .setInput("_XXOO_OX_\none three\n1 3")
+                .setAttach(new Clue(
+                    "_XXOO_OX_", "XXXOO_OX_", "X wins",
+                    "You should enter numbers!")),
+
+            new TestCase<Clue>()
+                .setInput("_XXOO_OX_\n3 2")
+                .setAttach(new Clue(
+                    "_XXOO_OX_", "_XXOOXOX_", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("_XXOO_OX_\n3 1")
+                .setAttach(new Clue(
+                    "_XXOO_OX_", "_XXOO_OXX", "Game not finished")),
+
+
+
+            new TestCase<Clue>()
+                .setInput("OXXXOOOX_\n3 1")
+                .setAttach(new Clue(
+                    "OXXXOOOX_", "OXXXOOOXX", "Draw")),
+
+
+
+
+            new TestCase<Clue>()
+                .setInput("XX_XOXOO_\n3 3")
+                .setAttach(new Clue(
+                    "XX_XOXOO_", "XXOXOXOO_", "O wins")),
+
+            new TestCase<Clue>()
+                .setInput("XX_XOXOO_\n3 1")
+                .setAttach(new Clue(
+                    "XX_XOXOO_", "XX_XOXOOO", "O wins")),
+
+
+
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX___\n1 3")
+                .setAttach(new Clue(
+                    "_XO_OX___", "XXO_OX___", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX___\n1 2")
+                .setAttach(new Clue(
+                    "_XO_OX___", "_XOXOX___", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX___\n1 1")
+                .setAttach(new Clue(
+                    "_XO_OX___", "_XO_OXX__", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX___\n2 1")
+                .setAttach(new Clue(
+                    "_XO_OX___", "_XO_OX_X_", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX___\n3 1")
+                .setAttach(new Clue(
+                    "_XO_OX___", "_XO_OX__X", "Game not finished")),
+
+
+
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX__X\n1 3")
+                .setAttach(new Clue(
+                    "_XO_OX__X", "OXO_OX__X", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX__X\n1 2")
+                .setAttach(new Clue(
+                    "_XO_OX__X", "_XOOOX__X", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX__X\n1 1")
+                .setAttach(new Clue(
+                    "_XO_OX__X", "_XO_OXO_X", "O wins")),
+
+            new TestCase<Clue>()
+                .setInput("_XO_OX__X\n2 1")
+                .setAttach(new Clue(
+                    "_XO_OX__X", "_XO_OX_OX", "Game not finished")),
+
+
+
+
+            new TestCase<Clue>()
+                .setInput("XO_OXOX__\n3 3")
+                .setAttach(new Clue(
+                    "XO_OXOX__", "XOXOXOX__", "X wins")),
+
+            new TestCase<Clue>()
+                .setInput("XO_OXOX__\n2 1")
+                .setAttach(new Clue(
+                    "XO_OXOX__", "XO_OXOXX_", "Game not finished")),
+
+            new TestCase<Clue>()
+                .setInput("XO_OXOX__\n3 1")
+                .setAttach(new Clue(
+                    "XO_OXOX__", "XO_OXOX_X", "X wins"))
+
+            );
+    }
+
+    @Override
+    public CheckResult check(String reply, Clue clue) {
+
+        List<TicTacToeField> fields = TicTacToeField.parseAll(reply);
+
+        if (fields.size() != 2) {
+            return new CheckResult(false,
+                "Output should contain 2 fields, found: " + fields.size());
+        }
+
+        TicTacToeField curr = fields.get(0);
+        TicTacToeField next = fields.get(1);
+
+        TicTacToeField correctCurr = new TicTacToeField(clue.input);
+        TicTacToeField correctNext = new TicTacToeField(clue.result);
+
+        List<String> lines = reply.lines()
+            .map(String::trim)
+            .filter(line -> line.length() != 0)
+            .collect(Collectors.toList());
+
+        String lastLine = lines.get(lines.size() - 1);
+
+        if (!lastLine.equals(clue.state)) {
+            return CheckResult.wrong(
+                "The final result is wrong. Should be \""
+                    + clue.state + "\", found: \"" + lastLine + "\""
+            );
+        }
+
+        if (clue.additionalContains != null) {
+            if (!reply.contains(clue.additionalContains)) {
+                return CheckResult.wrong(
+                    "Output should contain a line \""
+                        + clue.additionalContains + "\", but this line wasn't found."
+                );
+            }
+        }
+
+        if (!curr.equalTo(correctCurr)) {
+            return new CheckResult(false,
+                "The first field is not equal to the input field " + clue.input);
+        }
+
+        if (curr.equalTo(next)) {
+            return new CheckResult(false,
+                "The first field is equals to the second, " +
+                    "but should be different");
+        }
+
+        if (!next.equalTo(correctNext)) {
+            return new CheckResult(false,
+                "The first field is correct, but the second is not");
+        }
+
+        return CheckResult.correct();
+    }
+}
