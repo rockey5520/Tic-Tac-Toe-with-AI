@@ -1,3 +1,4 @@
+import org.hyperskill.hstest.exception.outcomes.WrongAnswer;
 import org.hyperskill.hstest.stage.StageTest;
 import org.hyperskill.hstest.testcase.CheckResult;
 import org.hyperskill.hstest.testcase.TestCase;
@@ -37,6 +38,7 @@ class TicTacToeField {
 
     TicTacToeField(String str) {
         field = new FieldState[3][3];
+
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
                 field[row][col] =
@@ -91,6 +93,11 @@ class TicTacToeField {
                 .collect(Collectors.toList());
 
             for (String line : lines) {
+                if (line.length() != 9) {
+                    throw new WrongAnswer("Line of Tic-Tac-Toe " +
+                        "field should be 9 characters long\n" +
+                        "found " + line.length() + " characters in \"" + line + "\"");
+                }
                 for (char c : line.toCharArray()) {
                     if (c != 'X'
                         && c != 'O'
@@ -130,7 +137,6 @@ class TicTacToeField {
         }
     }
 
-
     static List<TicTacToeField> parseAll(String output) {
         List<TicTacToeField> fields = new ArrayList<>();
 
@@ -158,8 +164,10 @@ class TicTacToeField {
                 candidateField += line + "\n";
             }
         }
+
         return fields;
     }
+
 }
 
 
@@ -172,7 +180,7 @@ class Clue {
 }
 
 public class TicTacToeTest extends StageTest<Clue> {
-    public TicTacToeTest() {
+    public TicTacToeTest() throws Exception {
         super(Main.class);
     }
 
@@ -223,12 +231,63 @@ public class TicTacToeTest extends StageTest<Clue> {
                 fullGameInput += fullMoveInput;
             }
 
+            String initial;
+
+            switch (i % 6) {
+                case 0: initial = "start user easy\n"; break;
+                case 1: initial = "start easy user\n"; break;
+                case 2: initial = "start user medium\n"; break;
+                case 3: initial = "start medium user\n"; break;
+                case 4: initial = "start user hard\n"; break;
+                case 5: initial = "start hard user\n"; break;
+                default: continue;
+            }
+
+            fullGameInput = initial + fullGameInput + "exit";
+
             tests.add(new TestCase<Clue>()
-                .setInput(fullGameInput)
-                .setAttach(new Clue(x, y)));
+                .setInput(fullGameInput));
 
             i++;
         }
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start easy easy\nexit"));
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start medium medium\nexit"));
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start hard hard\nexit"));
+
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start medium easy\nexit"));
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start easy medium\nexit"));
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start medium hard\nexit"));
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start hard medium\nexit"));
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start easy hard\nexit"));
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start hard easy\nexit"));
+
+
+        tests.add(new TestCase<Clue>()
+            .setInput("start user user\n" +
+                "1 1\n" +
+                "2 2\n" +
+                "1 2\n" +
+                "2 1\n" +
+                "1 3\n" +
+                "exit"));
 
         return tests;
     }
@@ -252,11 +311,6 @@ public class TicTacToeTest extends StageTest<Clue> {
                         "other one is not a continuation " +
                         "of the other (they differ more than in two places).");
             }
-        }
-
-        if (!reply.contains("Making move level \"easy\"")) {
-            return new CheckResult(false,
-                "No \"Making move level \"easy\"\" line in output");
         }
 
         return CheckResult.correct();

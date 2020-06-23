@@ -82,6 +82,11 @@ files:
                     .collect(Collectors.toList());
 
                 for (String line : lines) {
+                    if (line.length() != 9) {
+                        throw new WrongAnswer("Line of Tic-Tac-Toe " +
+                            "field should be 9 characters long\n" +
+                            "found " + line.length() + " characters in \"" + line + "\"");
+                    }
                     for (char c : line.toCharArray()) {
                         if (c != 'X'
                             && c != 'O'
@@ -283,6 +288,562 @@ files:
         }
     }
   learner_created: false
+- name: src/tictactoe/Main.java
+  visible: true
+  text: |
+    package tictactoe;
+
+    import java.util.InputMismatchException;
+    import java.util.NoSuchElementException;
+    import java.util.Scanner;
+
+    public class Main {
+        public static void main(String[] args) {
+            Scanner scanner = new Scanner(System.in);
+
+            boolean playGame = true;
+            while (playGame){
+                String command = null;
+                String xDifficult = null;
+                String oDifficult = null;
+
+                boolean invalidCommand = true;
+
+                while (invalidCommand) {
+                    System.out.print("Input command: ");
+                    String input = scanner.nextLine();
+                    Scanner parseCommand = new Scanner(input);
+
+                    try {
+
+                        if (parseCommand.hasNext("start|exit")) {
+                            command = parseCommand.next();
+                        } else {
+                            throw new InputMismatchException("");
+                        }
+
+                        switch (command) {
+                            case "exit":
+                                invalidCommand = false;
+                                playGame = false;
+                                break;
+                            case "start":
+                                xDifficult = parseCommand.next("easy|user");
+                                oDifficult = parseCommand.next("easy|user");
+                                invalidCommand = false;
+                        }
+                    } catch (NoSuchElementException e) {
+                        System.out.println("Bad parameters!");
+                    }
+                }
+                if ("start".equals(command)) {
+                    Game game = new Game();
+                    Robot xPlayer = RobotFabrics.CreateRobot(game, xDifficult);
+                    Robot oPlayer = RobotFabrics.CreateRobot(game, oDifficult);
+
+                    game.setPlayers(xPlayer, oPlayer);
+
+                    game.start();
+                }
+
+            }
+        }
+    }
+  learner_created: true
+- name: src/tictactoe/GameMap.java
+  visible: true
+  text: |
+    package tictactoe;
+
+    import static tictactoe.GameStatus.*;
+    import static tictactoe.Indicators.*;
+
+    import java.util.ArrayList;
+
+    public class GameMap {
+      short field;
+
+      GameMap (String stringFormat){
+
+        int counter = 0;
+        short[][] f = new short[3][3];
+        for (int i = 2; i >= 0; i--) {
+          for (int j = 0; j < 3; j++) {
+            f[i][j] = Indicators.getValue(stringFormat.charAt(counter));
+            counter++;
+          }
+        }
+        field = 0;
+
+        for (int i = 2; i >= 0; i--) {
+          for (int j = 2; j >= 0; j--) {
+            field = (short)((field * 3) + f[i][j]);
+          }
+        }
+      }
+
+      public Indicators[][] toArray() {
+        short f = this.field;
+        Indicators[][] res = new Indicators[3][3];
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            res[i][j] = Indicators.getCondition((short)(f % 3));
+            f /= 3;
+          }
+        }
+        return res;
+      }
+
+      public short getfiled() {
+        return field;
+      }
+
+      public Indicators getCell(Coordinates coordinates) {
+        final int x = coordinates.x;
+        final int y = coordinates.y;
+
+        if ( x > 3 || x < 1 || y > 3 || y < 1) {
+          System.exit(1); //todo change to Exception;
+        }
+        switch ((field / (short) Math.pow(3, (y - 1) * 3 + x - 1)) % 3) {
+          case 1:
+            return X;
+          case 2:
+            return O;
+        }
+        return EMPTY;
+      }
+
+      public boolean isCellEmpty(Coordinates coordinates) {
+        return getCell(coordinates) == EMPTY;
+      }
+
+      private void setField(Indicators[][] arr){
+        field = 0;
+        for (int i = 2; i >= 0; i--) {
+          for (int j = 2; j >= 0; j--) {
+            field = (short)((field * 3) + arr[i][j].getValue());
+          }
+        }
+      }
+
+      public void setCell(Coordinates coordinates, Indicators condition) {
+        final int x = coordinates.x;
+        final int y = coordinates.y;
+        if ( x > 3 || x < 1 || y > 3 || y < 1) {
+          System.exit(1); //todo change to Exception;
+        }
+
+        Indicators[][] arr = toArray();
+        arr[y-1][x-1] = condition;
+        setField(arr);
+      }
+
+      public GameStatus getGameStatus() {
+        Indicators[][] f= toArray();
+
+        for (int i = 0; i < 3; i++) {
+          if (f[0][i] == f[1][i] && f[1][i] == f[2][i] && f[0][i] != EMPTY) {
+            if (f[0][i] == X) {
+              return X_WIN;
+            } else {
+              return O_WIN;
+            }
+          }
+          if (f[i][0] == f[i][1] && f[i][1] == f[i][2] && f[i][0] != EMPTY) {
+            if (f[i][0] == X) {
+              return X_WIN;
+            } else {
+              return O_WIN;
+            }
+          }
+        }
+
+        if (((f[1][1] == f[0][0] && f[1][1] == f[2][2])
+            || (f[1][1] == f[0][2] && f[1][1] == f[2][0]))
+            && f[1][1] != EMPTY) {
+          if (f[1][1] == X) {
+            return X_WIN;
+          } else {
+            return O_WIN;
+          }
+        }
+
+        int xCount = 0;
+        int oCount = 0;
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            switch (f[i][j]) {
+              case X:
+                xCount++;
+                break;
+              case O:
+                oCount++;
+                break;
+            }
+          }
+        }
+
+        if (xCount + oCount == 9) {
+          return DRAW;
+        }
+
+        if (xCount == oCount ) {
+          return X_TURN;
+        }
+
+        return O_TURN;
+      }
+
+      public ArrayList<Coordinates> getEmpties() {
+        ArrayList<Coordinates> res = new ArrayList<>();
+        Indicators[][] array = toArray();
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            if (array[i][j] == EMPTY) {
+              res.add(new Coordinates(j + 1, i + 1));
+            }
+          }
+        }
+        return res;
+      }
+    }
+  learner_created: true
+- name: src/tictactoe/Game.java
+  visible: true
+  text: |
+    package tictactoe;
+    import static tictactoe.Indicators.*;
+
+    public class Game {
+      private GameMap field;
+      private Indicators turn;
+      private Robot xPlayer = null;
+      private Robot oPlayer = null;
+
+      public void setPlayers(Robot xPlayer, Robot oPlayer) {
+        this.xPlayer= xPlayer;
+        this.oPlayer = oPlayer;
+      }
+
+      Game() {
+        field = new GameMap("_________");
+        turn = X;
+      }
+
+      public void start() {
+        if (xPlayer == null || oPlayer == null) {
+          System.out.print("Players are not initialized!");
+          System.exit(1);
+        }
+
+        boolean playGame = true;
+        Coordinates coordinates = null;
+        GameStatus status = GameStatus.X_TURN;
+
+        while (playGame) {
+
+          showfield();
+
+          switch (turn) {
+            case X:
+              coordinates = xPlayer.getMove();
+              break;
+            case O:
+              coordinates = oPlayer.getMove();
+              break;
+          }
+
+          if (!makeMove(coordinates)) {
+            System.out.print("Error occupied when try to make move!");
+            System.exit(1);
+          }
+
+          status = getStatus();
+          switch (status) {
+            case X_WIN:
+            case O_WIN:
+            case DRAW:
+              playGame = false;
+              break;
+          }
+        }
+
+        showfield();
+        System.out.println(status);
+      }
+
+      public void showfield() {
+        Indicators[][] arr = field.toArray();
+        System.out.print("---------\n");
+        for (int i = 2; i > -1 ; i--) {
+          System.out.print("| ");
+          for (int j = 0; j < 3; j++) {
+            System.out.print(arr[i][j] == EMPTY ? "  " : arr[i][j]+  " ");
+          }
+          System.out.print("|\n");
+        }
+        System.out.print("---------\n");
+      }
+
+      public void setField(String stringFormat) {
+        field = new GameMap(stringFormat);
+      }
+
+      public GameMap getField() {
+        return field;
+      }
+
+      public GameStatus getStatus() {
+        return field.getGameStatus();
+      }
+
+      public boolean makeMove(Coordinates coordinates) {
+        if (coordinates.isValid() && field.isCellEmpty(coordinates)) {
+          field.setCell(coordinates, turn);
+          nextTurn();
+          return true;
+        }
+        return false;
+      }
+
+      private void nextTurn() {
+        if (turn == X) {
+          turn = O;
+        } else {
+          turn = X;
+        }
+      }
+
+      public Indicators getCurrentTurn() {
+        return turn == X? X : O;
+      }
+    }
+  learner_created: true
+- name: src/tictactoe/Indicators.java
+  visible: true
+  text: |
+    package tictactoe;
+
+    public enum Indicators {
+      EMPTY('_', (short) 0),
+      X('X', (short) 1),
+      O('O', (short) 2);
+
+      private char name;
+      private short value;
+
+      Indicators(char name, short value){
+        this.value = value;
+        this.name = name;
+      }
+
+      public short getValue() {
+        return value;
+      }
+
+      public char getName() {
+        return name;
+      }
+
+      public static short getValue(char name) {
+        for (Indicators indicators : Indicators.values()) {
+          if (indicators.getName() == name) {
+            return indicators.getValue();
+          }
+        }
+        return 0;
+      }
+
+
+      public static Indicators getCondition(short value) {
+        for (Indicators indicators : Indicators.values()) {
+          if (indicators.getValue() == value) {
+            return indicators;
+          }
+        }
+        return EMPTY;
+      }
+
+      @Override
+      public String toString() {
+        return String.valueOf(name);
+      }
+    }
+  learner_created: true
+- name: src/tictactoe/Robot.java
+  visible: true
+  text: |
+    package tictactoe;
+
+    import static tictactoe.Indicators.*;
+
+    import java.util.ArrayList;
+    import java.util.Scanner;
+
+    abstract class Robot {
+      Game game;
+      Indicators wePlayFor = null;
+
+      Robot(Game game) {
+        this.game = game;
+
+      }
+
+      final public void makeMove(){
+        Indicators currentTurn = null;
+        switch (game.getStatus()) {
+          case X_TURN:
+            currentTurn = X;
+            break;
+          case O_TURN:
+            currentTurn = O;
+            break;
+          default:
+            System.out.print("Cannot make move");
+            System.exit(1);
+        }
+
+        if (wePlayFor == null) {
+          wePlayFor = currentTurn;
+        } else if (wePlayFor != currentTurn) {
+          System.out.print("Error making move. Players side was changing ");
+          System.exit(1);
+        }
+
+        Coordinates coordinates = getMove();
+        if (!game.makeMove(coordinates)) {
+          System.out.print("Error making move");
+          System.exit(1);
+        }
+      }
+
+      abstract Coordinates getMove();
+    }
+
+    class RobotFabrics {
+      static Robot CreateRobot(Game ttGame, String difficult) {
+        Robot robot;
+        switch (difficult) {
+          case "easy":
+            return new RandomRobot(ttGame);
+          case "user":
+            return new UserPlay(ttGame);
+        }
+        return null;
+      }
+    }
+
+    class RandomRobot extends Robot {
+
+      private GameMap field;
+
+      RandomRobot(Game game) {
+        super(game);
+        field = game.getField();
+      }
+
+      @Override
+      Coordinates getMove() {
+        ArrayList<Coordinates> emptyCoordinates = field.getEmpties();
+        Coordinates res = emptyCoordinates.get((int)(Math.random() * emptyCoordinates.size()));
+        System.out.println("Making move level \"easy\"");
+        return res;
+      }
+    }
+
+    class UserPlay extends Robot {
+      GameMap field;
+
+      UserPlay(Game ttGame) {
+        super(ttGame);
+        field = ttGame.getField();
+      }
+
+      @Override
+      Coordinates getMove() {
+        Scanner scanner = new Scanner(System.in);
+        int x = 0;
+        int y = 0;
+        boolean validAnswer = false;
+        do {
+          System.out.print("Enter the coordinates: ");
+          String coord = scanner.nextLine();
+          try {
+            String[] arr = coord.split("\\s+");
+            x = Integer.parseInt(arr[0]);
+            y = Integer.parseInt(arr[1]);
+
+          } catch (NumberFormatException e) {
+            System.out.println("You should enter numbers!");
+            continue;
+
+          } catch (ArrayIndexOutOfBoundsException e) {
+            System.out.println("You should enter 2 numbers!");
+            continue;
+          }
+
+          if ( x < 1 || x > 3 || y < 1 || y > 3) {
+            System.out.print("Coordinates should be from 1 to 3!\n");
+            continue;
+          }
+
+          if (!field.isCellEmpty(new Coordinates(x, y))) {
+
+            System.out.print("This cell is occupied! Choose another one!\n");
+            continue;
+          }
+
+          validAnswer = true;
+
+        } while (!validAnswer);
+
+        return new Coordinates(x, y);
+      }
+    }
+  learner_created: true
+- name: src/tictactoe/Coordinates.java
+  visible: true
+  text: |
+    package tictactoe;
+
+    public class Coordinates {
+      public int x, y;
+
+      Coordinates(int x, int y) {
+        this.x = x;
+        this.y = y;
+      }
+
+      public boolean isValid() {
+        return x > 0 && x < 4 && y > 0 && y < 4;
+      }
+    }
+  learner_created: true
+- name: src/tictactoe/GameStatus.java
+  visible: true
+  text: |
+    package tictactoe;
+
+    public enum  GameStatus {
+      X_TURN("Game not finished"),
+      O_TURN("Game not finished"),
+      DRAW("Draw"),
+      X_WIN("X wins"),
+      O_WIN("O wins ");
+
+      private String name;
+
+      GameStatus(String name) {
+        this.name = name;
+      }
+
+      @Override
+      public String toString() {
+        return name;
+      }
+    }
+  learner_created: true
 feedback_link: https://hyperskill.org/projects/81/stages/450/implement
-status: Unchecked
-record: -1
+status: Solved
+record: 4

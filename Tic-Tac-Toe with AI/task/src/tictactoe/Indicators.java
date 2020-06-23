@@ -22,19 +22,27 @@ public enum Indicators {
   }
 
   public static short getValue(char name) {
-    for (Indicators indicators : Indicators.values()) {
-      if (indicators.getName() == name) {
-        return indicators.getValue();
+    for (Indicators condition : Indicators.values()) {
+      if (condition.getName() == name) {
+        return condition.getValue();
       }
     }
     return 0;
   }
 
+  public static char getName(short value) {
+    for (Indicators condition : Indicators.values()) {
+      if (condition.getValue() == value) {
+        return condition.getName();
+      }
+    }
+    return 0;
+  }
 
   public static Indicators getCondition(short value) {
-    for (Indicators indicators : Indicators.values()) {
-      if (indicators.getValue() == value) {
-        return indicators;
+    for (Indicators condition : Indicators.values()) {
+      if (condition.getValue() == value) {
+        return condition;
       }
     }
     return EMPTY;

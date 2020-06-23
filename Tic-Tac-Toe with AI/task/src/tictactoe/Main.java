@@ -1,54 +1,58 @@
 package tictactoe;
 
+import java.util.InputMismatchException;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        System.out.print("Enter cells: ");
-        String stringFormat = scanner.nextLine();
-        GameMap gameMap = new GameMap();
-        gameMap.setGame(stringFormat);
-        gameMap.showGame();
-        int x = 5;
-        int y = 5;
 
-        boolean validAnswer = false;
-        do {
-            System.out.print("Enter the coordinates: ");
-            String position = scanner.nextLine();
-            try {
-                String[] arr = position.split("\\s+");
-                x = Integer.parseInt(arr[0]);
-                y = Integer.parseInt(arr[1]);
+        boolean playGame = true;
+        while (playGame){
+            String command = null;
+            String xDifficult = null;
+            String oDifficult = null;
+            boolean invalidCommand = true;
 
-            } catch (NumberFormatException e) {
-                System.out.println("You should enter numbers!");
-                continue;
-            } catch (ArrayIndexOutOfBoundsException e) {
-                System.out.println("You should enter 2 numbers!");
-                continue;
+            while (invalidCommand) {
+                System.out.print("Input command: ");
+                String input = scanner.nextLine();
+                Scanner parseCommand = new Scanner(input);
+
+                try {
+
+                    if (parseCommand.hasNext("start|exit")) {
+                        command = parseCommand.next();
+                    } else {
+                        throw new InputMismatchException("");
+                    }
+
+                    switch (command) {
+                        case "exit":
+                            invalidCommand = false;
+                            playGame = false;
+                            break;
+                        case "start":
+
+                            xDifficult = parseCommand.next("easy|user|medium|hard");
+                            oDifficult = parseCommand.next("easy|user|medium|hard");
+
+                            invalidCommand = false;
+                    }
+                } catch (NoSuchElementException e) {
+                    System.out.println("Bad parameters!");
+                }
             }
+            if ("start".equals(command)) {
+                Game ttGame = new Game();
+                Robot xPlayer = RobotFabrics.CreateRobot(ttGame, xDifficult);
+                Robot oPlayer = RobotFabrics.CreateRobot(ttGame, oDifficult);
 
-            if ( x < 1 || x > 3 || y < 1 || y > 3) {
-                System.out.print("Coordinates should be from 1 to 3!\n");
-                continue;
+                ttGame.setPlayers(xPlayer, oPlayer);
+
+                ttGame.start();
             }
-
-            if (gameMap.getField().isEmpty(x, y)) {
-                System.out.print("This cell is occupied! Choose another one!\n");
-                continue;
-            }
-
-            validAnswer = true;
-
-        } while (!validAnswer);
-
-        if (!gameMap.makeMoveXY(x, y)) {
-            System.out.print("Error occupied when try to make move!");
-            System.exit(1);
         }
-        gameMap.showGame();
-        System.out.println(gameMap.getStatus());
     }
 }
