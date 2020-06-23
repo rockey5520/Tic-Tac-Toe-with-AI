@@ -422,6 +422,18 @@ files:
         }
     }
   learner_created: false
+- name: src/tictactoe/GameStatus.java
+  visible: true
+  learner_created: true
+- name: src/tictactoe/GameMap.java
+  visible: true
+  learner_created: true
+- name: src/tictactoe/Game.java
+  visible: true
+  learner_created: true
+- name: src/tictactoe/Indicators.java
+  visible: true
+  learner_created: true
 feedback_link: https://hyperskill.org/projects/81/stages/447/implement
-status: Unchecked
-record: -1
+status: Solved
+record: 1
